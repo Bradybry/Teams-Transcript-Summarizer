@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Meeting Summarizer</title>
+    <style>
+
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f8f8;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+        h1 {
+            text-align: center;
+            color: #444444;
+            margin-bottom: 30px;
+        }
+        /* Sidebar and Hamburger Menu Styles */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 250px;
+            background-color: #f1f1f1;
+            padding: 20px;
+            box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        .sidebar .settings-option {
+            margin-bottom: 20px;
+        }
+        .hamburger-menu {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+        .hamburger-menu div {
+            width: 30px;
+            height: 4px;
+            background-color: #444444;
+            margin-bottom: 6px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        label {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+        input[type="submit"] {
+            font-size: 16px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        .summary-container {
+            margin-top: 30px;
+            padding: 10px; /* Add padding for better spacing */
+            border: 1px solid #ddd; /* Add a border to visually separate the summary */
+            overflow: auto; /* Add scrollbar if content overflows */
+            /* Remove max-height property */
+        }
+
+        .summary-container pre {
+        white-space: pre-wrap; /* Enable line wrapping */
+        word-wrap: break-word; /* Break words if they overflow */
+        margin: 0; /* Remove default margin */
+        }
+        .loading-spinner {
+            display: none; /* Hidden by default */
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #007bff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .summary-btn {
+            display: inline-block;
+            font-size: 16px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 10px;
+            margin-right: 10px; /* Add space between buttons */
+        }
+
+        .summary-btn:hover {
+            background-color: #0056b3;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Hamburger Menu -->
+    <div class="hamburger-menu" onclick="toggleSidebar()">
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <!-- Language Model Dropdown -->
+        <div class="settings-option">
+            <label for="model_name">Choose Language Model:</label>
+            <select id="model_name" name="model_name" onchange="updateModelName()">
+                <option value="gpt-4" selected>gpt-4</option>
+                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                <option value="claude-v1.3">claude-v1.3</option>
+            </select>
+        </div>
+        <!-- Additional settings can be added here -->
+    </div>
+    <div class="container">
+        <h1>Meeting Summarizer</h1>
+        <form method="post" enctype="multipart/form-data" onsubmit="showSpinner()">
+            <label for="file">Upload a VTT file:</label>
+            <input type="file" name="file" id="file" accept=".vtt">
+            <!-- Add textarea for direct text input -->
+            <label for="text">Or enter text:</label>
+            <textarea name="text" id="text" rows="6" style="width: 100%; margin-bottom: 20px;"></textarea>
+            <input type="hidden" name="model_name" id="hiddenModelName">
+            <input type="submit" value="Summarize">
+        </form>
+        <div class="loading-spinner" id="loadingSpinner"></div>
+        <!-- Add a container to display the summarized content -->
+        {% if summary %}
+        <div class="summary-container" style="margin-top: 30px;">
+            <h2>Summary</h2>
+
+            <!-- Add a form with a textarea for editing the summary -->
+            <form id="summary-form" method="POST" action="{{ url_for('download_summary') }}">
+                <textarea id="summary-editor" name="edited-summary" rows="30" cols="75", style="width: 100">{{ summary }}</textarea>
+                <br>
+            </form>
+
+            <!-- Update the download button to call a JavaScript function on click -->
+            <div style="text-align: center;">
+                <a href="#" class="summary-btn" onclick="submitAndDownload()">Download Summary</a>
+                <a href="{{ url_for('index') }}" class="summary-btn">Create New Summary</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <script>
+        function submitAndDownload() {
+        document.getElementById('summary-form').submit();
+        }
+        function showSpinner() {
+            // Show the loading spinner when the form is submitted
+            document.getElementById('loadingSpinner').style.display = 'block';
+        }
+        function toggleSidebar() {
+            var sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+        } else {
+        sidebar.classList.add('open');
+        }
+        }
+        function updateModelName() {
+        var selectedModel = document.getElementById('model_name').value;
+        document.getElementById('hiddenModelName').value = selectedModel;
+        }
+        // Call updateModelName initially to set the default value
+        updateModelName();
+    </script>
+    <!-- Add styles for the download button -->
+    <style>
+        .download-btn {
+            display: inline-block;
+            font-size: 16px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+        .download-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</body>
+</html>
