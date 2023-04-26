@@ -62,7 +62,7 @@ class LanguageExpert(dict):
     def get_content(self):
         example_output = self.example_output
         example_input = self.example_input
-        content = f'<assistant-definition><name>{self.name}</name><role>{self.description}</role><system-message>{self.system_message}</system-message><example-input>{example_input}</example-input><example-output>{example_output}<example-ouput></assistant-definition>'
+        content = f'<assistant_definition><name>{self.name}</name><role>{self.description}</role><system_message>{self.system_message}</system_message><example_input>{example_input}</example_input><example_output>{example_output}</example_ouput></assistant_definition>'
         content  = SystemMessage(content=content)
         return content
     
@@ -70,14 +70,21 @@ class LanguageExpert(dict):
         human_message = HumanMessage(content=message)
         request_message = [self.get_content(), human_message]
         response  = self.chat(request_message)
-        self.log(message, response)
+        self.log([message], [response])
         return response
 
-    def log(self, message, response):
+    def log(self, requests, responses):
         now = datetime.datetime.now()
         filename = Path(f'./logs/{now.strftime("%Y-%m-%d_%H-%M-%S")}_{self.name}.txt')
         filename.parent.mkdir(parents=True, exist_ok=True)
-        log = f'Expert Name:{self.name}\n\nReponse:{response}\n\noriginal message:{message}'
+        
+        log = f'Expert Name: {self.name}\n\nRequests:\n'
+        for request in requests: 
+            log += f'{request}\n\n'
+        log += 'Responses:\n'
+        for response in responses:
+            log += f'{response}\n\n'
+        
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(log)
     
@@ -176,10 +183,10 @@ def parse_assistant_definition(markdown_text):
     return assistant_definition
 
 def gen_prompt(manager):
-    generator = manager.get_expert('PromptGeneratorV2')
-    idea = manager.get_expert('PromptIdeaExpander')
+    generator = manager.get_expert('Prompt_GeneratorV3')
+    idea = manager.get_expert('PromptIdeaExpanderV3')
     expandedIdea = idea.gen_from_file('./promptpad.txt')
-    expandedIdea = f'Generate a prompt from the following proposal:\n{expandedIdea}'
+    expandedIdea = f'<prompt_proposal>{expandedIdea}</prompt_proposal> Please generate a properly formatted prompt based on the supplied prompt proposal. '
     formattedPrompt = generator(expandedIdea)
     prompt = parse_assistant_definition(formattedPrompt)
     expert = LanguageExpert(**prompt)
@@ -192,15 +199,13 @@ def improve(target, manager):
     improver = manager.get_expert('PromptImproverV2')
     suggestion = manager.get_expert('PromptSuggestionIncorporator')
     content  = target.get_content().content
-    recommendations = improver(content)
-    base = target.get_content().content
-    prompt  = f'<original-prompt>{base}</originalprompt><prompt-recommendations>{recommendations}</prompt-recommendations>'
-    new_expert = suggestion(prompt)
+    recommendations = improver(f'<input>Agent Definition to be improved:\n\n{content}\n\nPlease provide recommendations for improving the agent definition.</input>')
+    prompt  = f'<input><original_prompt>{content}</original_prompt><prompt_recommendations>{recommendations}</prompt_recommendations> Please generate a new agent definition based on the supplied prompt and recommendations.</input>'
     print(recommendations)
+    new_expert = suggestion(prompt)
     try:
         new_expert = parse_assistant_definition(new_expert)
-        new_expert = LanguageExpert(**new_expert)
+        new_expert = LanguageExpert(**new_expert,model_params=target.model_params)
     except:
         print('Failed to parse suggestion')
-    print(new_expert)
     return new_expert
