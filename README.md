@@ -1,4 +1,4 @@
-#Transcript Summarization App
+# Transcript Summarization App
 
 This flask app provides an interface for summarizing meeting transcripts using pretrained language models.
 
