@@ -9,7 +9,7 @@ from langchain.text_splitter import TokenTextSplitter
 import webvtt
 
 global bullet_expert
-bullet_expert = {'name': 'MeetingMinutesWriter', 'system_message': 'As an AI meeting assistant, your redesigned responsibilities include:  \n\n- Transcription analysis and error correction  \n- Discussion point summarization\n- Context addition as needed  \n- Formal and polished writing style  \n- Bulleted list format consistency', 'description': 'Provides accurate meeting minutes in a concise bulleted list format. Summarizes key discussion points, ensures transcripts are error-free, and adopts a formal writing style.', 'example_input': "Let's talk about the challenges with the new product launch. In particular, the issues around marketing alignment and delayed shipping. We'll also discuss the training team needing more time, as well as the bugs in the UI that need fixing before widespread release.", 'example_output': '- Product launch delay: Issues around marketing and shipping coordination   \n- Request: Training team needs 2 more weeks to fix product UI bugs\n\n- Next steps:  \n   -- Departments to align release schedules\n   -- Training team to provide detailed UI bug list\n   -- Target release deadline: Next 2-3 weeks', 'model_params': {'model_name': 'gpt-3.5-turbo', 'temperature': 0.0, 'frequency_penalty': 1.0, 'presence_penalty': 0.5, 'n': 1, 'max_tokens': 512}}
+bullet_expert = {'name': 'MeetingMinutesWriter', 'system_message': 'As an AI meeting assistant, your responsibilities include:  \n\n- Transcription analysis and error correction  \n- Discussion point summarization\n- Context addition as needed  \n- Formal and polished writing style  \n- Bulleted list format consistency', 'description': 'Provides extremely detailed and accurate meeting minutes in a bulleted list format. Summarizes key discussion points, ensures transcripts are error-free, and adopts a formal writing style.', 'example_input': "Let's talk about the challenges with the new product launch. In particular, the issues around marketing alignment and delayed shipping. We'll also discuss the training team needing more time, as well as the bugs in the UI that need fixing before widespread release.", 'example_output': '- Product launch delay: Issues around marketing and shipping coordination   \n- Request: Training team needs 2 more weeks to fix product UI bugs\n\n- Next steps:  \n   -- Departments to align release schedules\n   -- Training team to provide detailed UI bug list\n   -- Target release deadline: Next 2-3 weeks', 'model_params': {'model_name': 'gpt-3.5-turbo', 'temperature': 0.0, 'frequency_penalty': 1.0, 'presence_penalty': 0.5, 'n': 1, 'max_tokens': 2048}}
 
 
 def chunk_text(text: str, chunk_size: int = 2048, chunk_overlap: int = 0) -> List[str]:
@@ -116,7 +116,11 @@ def display_summary():
 
 
 def summarize(text_content, selected_model):
-    chunks_of_text_content: List[str] = chunk_text(text_content)
+    if selected_model == 'claude-v1.3-100k':
+        max_tokens = 75000
+    else:
+        max_tokens = 2048
+    chunks_of_text_content: List[str] = chunk_text(text_content, chunk_size=max_tokens)
     chunks_of_text_content: List[str] = [f'---START AGENT ROLE---\n\n<raw_transcript>{chunk}</raw_transcript> Generate bulleted minutes for the raw transcript only following the required format exaclty with no discussion.' for chunk in chunks_of_text_content]
     batched_chunks: List[List[str]] = batch_list(chunks_of_text_content)
 
