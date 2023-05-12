@@ -38,7 +38,7 @@ def convert_vtt_to_txt(infile, outfile):
     for line in lines:
         if line == previous:
             continue
-        transcript += " " + line
+        transcript += f" {line}"
         previous = line
     with open(outfile, 'w') as f:
         f.write(transcript)
@@ -54,34 +54,33 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    if request.method == 'POST':
-        # Check if file is uploaded
-        is_file_uploaded = 'file' in request.files and request.files['file'].filename != ''
-        # Check if text is entered
-        is_text_entered = 'text' in request.form and request.form['text'].strip() != ''
-
-        if not is_file_uploaded and not is_text_entered:
-            return 'No file or text provided', 400
-
-        if is_file_uploaded:
-            file = request.files['file']
-            input_file = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-            file.save(input_file)
-            if input_file.endswith('.vtt'):
-                convert_vtt_to_txt(input_file, input_file[:-4] + '.txt')
-                input_file = input_file[:-4] + '.txt'
-            text_content = Path(input_file).read_text(encoding='utf-8')
-        else:
-            text_content = request.form['text']
-
-        # (Perform the summarization code, as before...)
-        selected_model = request.form['model_name']
-        summary = summarize(text_content, selected_model)
-        session['summary'] = summary
-        # Instead of creating a downloadable file, render the template with the summary
-        return redirect(url_for('display_summary'))
-    else:
+    if request.method != 'POST':
         return render_template('index.html')
+    # Check if file is uploaded
+    is_file_uploaded = 'file' in request.files and request.files['file'].filename != ''
+    # Check if text is entered
+    is_text_entered = 'text' in request.form and request.form['text'].strip() != ''
+
+    if not is_file_uploaded and not is_text_entered:
+        return 'No file or text provided', 400
+
+    if is_file_uploaded:
+        file = request.files['file']
+        input_file = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(input_file)
+        if input_file.endswith('.vtt'):
+            convert_vtt_to_txt(input_file, f'{input_file[:-4]}.txt')
+            input_file = f'{input_file[:-4]}.txt'
+        text_content = Path(input_file).read_text(encoding='utf-8')
+    else:
+        text_content = request.form['text']
+
+    # (Perform the summarization code, as before...)
+    selected_model = request.form['model_name']
+    summary = summarize(text_content, selected_model)
+    session['summary'] = summary
+    # Instead of creating a downloadable file, render the template with the summary
+    return redirect(url_for('display_summary'))
 
 @app.route('/download-summary', methods=['GET', 'POST'])
 def download_summary():
@@ -105,9 +104,7 @@ def display_summary():
     summary = session.get('summary', '')
 
     if request.method == 'POST':
-        # Extract the edited summary from the request and update the session variable
-        edited_summary = request.form.get('edited-summary', '')
-        if edited_summary:
+        if edited_summary := request.form.get('edited-summary', ''):
             summary = edited_summary
             session['summary'] = summary
 
@@ -116,10 +113,7 @@ def display_summary():
 
 
 def summarize(text_content, selected_model):
-    if selected_model == 'claude-v1.3-100k':
-        max_tokens = 75000
-    else:
-        max_tokens = 2048
+    max_tokens = 75000 if selected_model == 'claude-v1.3-100k' else 2048
     chunks_of_text_content: List[str] = chunk_text(text_content, chunk_size=max_tokens)
     chunks_of_text_content: List[str] = [f'---START AGENT ROLE---\n\n<raw_transcript>{chunk}</raw_transcript> Generate bulleted minutes for the raw transcript only following the required format exaclty with no discussion.' for chunk in chunks_of_text_content]
     batched_chunks: List[List[str]] = batch_list(chunks_of_text_content)
@@ -132,9 +126,7 @@ def summarize(text_content, selected_model):
         summarized_batch: List[str] = bullet_generator.bulk_generate(batch)
         summarized_chunks.extend(summarized_batch)
 
-    summary = ''.join(summarized_chunks)
-
-    return summary
+    return ''.join(summarized_chunks)
 
 if __name__ == '__main__':
     app.run(debug=True) 
