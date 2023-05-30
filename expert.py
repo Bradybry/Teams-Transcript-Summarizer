@@ -5,7 +5,8 @@ from langchain.schema import HumanMessage, SystemMessage
 from config import OPENAI_API_KEY, ANTHROPIC_API_KEY #Import API Keys stored in a separate file. You can do this with envionrment variables as well.
 import datetime
 from pathlib import Path
-
+import xml.etree.ElementTree as ET
+import html
 
 # At the moment langchain API wrappers are needed due to the separation of chat models and language models. These wrappers allow us to use the same interface for both.
 # Class to communicate with OpenAI for generating responses. Wrapped around the langchain wrappers
@@ -41,65 +42,74 @@ class LanguageExpert:
     example_output (str): Expert's response to the sample input
     model_params (dict): Parameters to configure the language model
     """
-    def __init__(self, name: str, system_message=None, description=None,  
-                 example_input=None, example_output=None, model_params=None):  
+    def __init__(self, name: str, preamble, model_params=None):  
 
-        ## Initialize expert attributes##
-        self.name = name  
-        self.system_message = system_message
-        self.description = description 
-        self.example_input = example_input 
-        self.example_output = example_output  
-        
+        ## Initialize expert attributes from preamble dictionary ##
+        self.name = preamble.get('name')
+        self.role = preamble.get('role')
+        self.preamble = preamble
+
         ##Set default model parameters if none provided##
-        if model_params is None:  
+        if model_params is None:
             model_params = {"model_name": "claude-v1.3", "temperature":  0.00,  
                             "frequency_penalty": 1.0, "presence_penalty":  0.5,  
                             "n": 1, "max_tokens":  512}
         self.model_params = model_params
         self.gen_chat()  #Generate the chat object to get model-specific responses
 
-    def serialize(self): 
-        """Returns a JSON-serializable representation of the expert.
 
-        Returns: 
-        dict: Contains all expert attributes.
-        """
-        return {
-            "name": self.name,
-            "system_message": self.system_message,
-            "description": self.description,
-            "example_input": self.example_input,
-            "example_output": self.example_output,
-            "model_params": self.model_params
-        }
+
+class LanguageExpert:
+    """Defines an AI assistant/expert for natural language generation."""
+
+    def __init__(self, preamble: dict, model_params=None):
+        ## Initialize expert attributes from preamble dictionary ##
+        self.name = preamble.get('name')
+        self.role = preamble.get('role')
+        self.preamble = preamble
+
+        ##Set default model parameters if none provided##
+        if model_params is None:
+            model_params = {"model_name": "claude-v1.3", "temperature":  0.00,  
+                            "frequency_penalty": 1.0, "presence_penalty":  0.5,  
+                            "n": 1, "max_tokens":  512}
+        self.model_params = model_params
+        self.gen_chat()  #Generate the chat object to get model-specific responses
+
 
     def get_content(self):
-        """Returns the expert definition in an fake XML format.
+        """Returns the expert definition in the new chatXML format."""
+        return SystemMessage(content=self.gen_prompt(self.preamble))
 
-        Returns:
-        SystemMessage: Expert definition wrapped in XML tags.  
-        """
-        content = '<assistant_definition>\n'
+    @staticmethod
+    def gen_prompt(d):
+        xml = f"{LanguageExpert.generate_xml('assistant_instruction', d)}"
+        return LanguageExpert.prettify_xml(xml)
 
-        if self.name:
-            content += f'<name>{self.name}</name>\n'
+    @staticmethod
+    def generate_xml(k, v):
+        if isinstance(v, str):
+            xml = f"<{k}>{html.escape(v)}</{k}>"
+        elif isinstance(v, dict):
+            xml = f"<{k}>"
+            for key, value in v.items():
+                xml += LanguageExpert.generate_xml(key, value)
+            xml += f"</{k}>"
+        elif isinstance(v, list):
+            xml = ""
+            for element in v:
+                if isinstance(element, dict):
+                    for sub_k, sub_v in element.items():
+                        xml += LanguageExpert.generate_xml(sub_k, sub_v)
+                else:  # If the element is not a dictionary, treat it as a string
+                    xml += LanguageExpert.generate_xml(k, element)
+        return xml
 
-        if self.description:
-            content += f'<role>{self.description}</role>\n'
-
-        if self.system_message:
-            content += f'<system_message>{self.system_message}</system_message>\n'
-
-        if example_input := self.example_input:
-            content += f'<example_input>{example_input}</example_input>\n'
-
-        if example_output := self.example_output:
-            content += f'<example_output>{example_output}</example_output>\n'
-
-        content += '</assistant_definition>'
-
-        return SystemMessage(content=content)
+    @staticmethod
+    def prettify_xml(xml_string):
+        root = ET.fromstring(xml_string)
+        ET.indent(root)
+        return ET.tostring(root, encoding="unicode")
     
     def generate(self, message): 
         """Generates a response to the input message. 
@@ -148,7 +158,7 @@ class LanguageExpert:
         Returns:
         list: List of plain text responses
         """   
-        return [generation[0].text for generation in generations]
+        return [generation[0].text.strip() for generation in generations]
 
     def bulk_generate(self, messages:list):
         """Generates responses for multiple input messages.

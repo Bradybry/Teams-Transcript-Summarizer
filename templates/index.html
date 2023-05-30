@@ -12,7 +12,7 @@
             padding: 0;
         }
         .container {
-            max-width: 600px;
+            max-width: 800px;
             margin: 50px auto;
             padding: 20px;
             background-color: #ffffff;
@@ -170,7 +170,7 @@
 
             <!-- Add a form with a textarea for editing the summary -->
             <form id="summary-form" method="POST" action="{{ url_for('download_summary') }}">
-                <textarea id="summary-editor" name="edited-summary" rows="30" cols="75", style="width: 100">{{ summary }}</textarea>
+                <textarea id="summary-editor" name="edited-summary" rows="30" cols="95", style="width: 100">{{ summary }}</textarea>
                 <br>
             </form>
 
