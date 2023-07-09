@@ -8,11 +8,14 @@ from expert import LanguageExpert
 from langchain.text_splitter import TokenTextSplitter
 import webvtt
 
-def chunk_text(text: str, chunk_size: int = 4096, chunk_overlap: int = 0) -> List[str]:
+global bullet_expert
+bullet_expert = {'name': 'MeetingMinutesWriter', 'system_message': 'As an AI meeting assistant, your responsibilities include:  \n\n- Transcription analysis and error correction  \n- Discussion point summarization\n- Context addition as needed  \n- Formal and polished writing style  \n- Bulleted list format consistency', 'description': 'Provides extremely detailed and accurate meeting minutes in a bulleted list format. Summarizes key discussion points, ensures transcripts are error-free, and adopts a formal writing style.', 'example_input': "Let's talk about the challenges with the new product launch. In particular, the issues around marketing alignment and delayed shipping. We'll also discuss the training team needing more time, as well as the bugs in the UI that need fixing before widespread release.", 'example_output': '- Product launch delay: Issues around marketing and shipping coordination   \n- Request: Training team needs 2 more weeks to fix product UI bugs\n\n- Next steps:  \n   -- Departments to align release schedules\n   -- Training team to provide detailed UI bug list\n   -- Target release deadline: Next 2-3 weeks', 'model_params': {'model_name': 'gpt-3.5-turbo', 'temperature': 0.0, 'frequency_penalty': 1.0, 'presence_penalty': 0.5, 'n': 1, 'max_tokens': 2048}}
+
+
+def chunk_text(text: str, chunk_size: int = 2048, chunk_overlap: int = 0) -> List[str]:
     """Split the text into chunks of a specified size."""
     splitter = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     return splitter.split_text(text)
-
 
 def batch_list(items: List[Any], batch_size: int = 10) -> List[List[Any]]:
     """Split a list into smaller lists of a specified size."""
@@ -35,28 +38,19 @@ def convert_vtt_to_txt(infile, outfile):
     for line in lines:
         if line == previous:
             continue
-        transcript += f" {line.strip()}"
+        transcript += f" {line}"
         previous = line
     with open(outfile, 'w') as f:
         f.write(transcript)
     print(f'Length of original:\t{len(vtt.content)} characters\nLength of final:\t{len(transcript)} characters\nPercent Reduction:\t{100 - len(transcript)*100/len(vtt.content):.0f}%')
 
-def save(summary: str) -> str:
-    summary_id = os.urandom(24).hex()
-    with open(f'summaries/{summary_id}.txt', 'w') as f:
-        f.write(summary)
-    return summary_id
 
-def load(summary_id: str) -> str:
-    with open(f'summaries/{summary_id}.txt', 'r') as f:
-        return f.read()
-    
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 # Ensure that the Flask app has a secret key to use sessions
 app.secret_key = os.urandom(24)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -84,12 +78,9 @@ def index():
     # (Perform the summarization code, as before...)
     selected_model = request.form['model_name']
     summary = summarize(text_content, selected_model)
-    summary = html_to_text(summary)
-    summary_id  = save(summary)
-    session['summary_id'] = summary_id
+    session['summary'] = summary
     # Instead of creating a downloadable file, render the template with the summary
     return redirect(url_for('display_summary'))
-
 
 @app.route('/download-summary', methods=['GET', 'POST'])
 def download_summary():
@@ -107,28 +98,11 @@ def download_summary():
 
     return response
 
-from bs4 import BeautifulSoup
-
-def html_to_text(html):
-    soup = BeautifulSoup(html, 'html.parser')
-
-    def extract_list(ul, indent=0):
-        result = []
-        for li in ul.find_all('li', recursive=False):
-            # Extract just the text of the <li> element without nested lists.
-            text = ''.join(li.find_all(text=True, recursive=False)).strip()
-            result.append('  ' * indent + '* ' + text)
-            for ul in li.find_all('ul', recursive=False):
-                result.extend(extract_list(ul, indent + 1))
-        return result
-
-    return '\n'.join(extract_list(soup.ul))
-
 @app.route('/summary', methods=['GET', 'POST'])
 def display_summary():
     # Get the summary from the user session
-    summary_id = session.get('summary_id', '')
-    summary = load(summary_id)
+    summary = session.get('summary', '')
+
     if request.method == 'POST':
         if edited_summary := request.form.get('edited-summary', ''):
             summary = edited_summary
@@ -141,19 +115,12 @@ def display_summary():
 def summarize(text_content, selected_model):
     max_tokens = 75000 if selected_model == 'claude-v1.3-100k' else 2048
     chunks_of_text_content: List[str] = chunk_text(text_content, chunk_size=max_tokens)
-    chunks_of_text_content: List[str] = [f'<raw_transcript>{chunk}</raw_transcript>' for chunk in chunks_of_text_content]
+    chunks_of_text_content: List[str] = [f'---START AGENT ROLE---\n\n<raw_transcript>{chunk}</raw_transcript> Generate bulleted minutes for the raw transcript only following the required format exaclty with no discussion.' for chunk in chunks_of_text_content]
     batched_chunks: List[List[str]] = batch_list(chunks_of_text_content)
-    from config import preamble
-    model_params = {
-        "model_name": "claude-v1.3",
-        "temperature": 0.00,
-        "frequency_penalty": 0.0,
-        "presence_penalty": 0.0,
-        "n": 1,
-        "max_tokens": 2048
-    }
-    bullet_generator: LanguageExpert = LanguageExpert(preamble=preamble, model_params=model_params)
+
+    bullet_generator: LanguageExpert = LanguageExpert(**bullet_expert)
     bullet_generator.change_param("model_name", selected_model)
+
     summarized_chunks: List[str] = []
     for batch in batched_chunks:
         summarized_batch: List[str] = bullet_generator.bulk_generate(batch)
