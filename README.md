@@ -6,9 +6,13 @@ This flask app provides an interface for summarizing meeting transcripts using p
 To run the app locally:
 
 1. Ensure you have Python 3.7+ and Flask installed
-2. Clone this repo 
-3. Run `python app.py`
-4. Visit http://127.0.0.1:5000 in your browser
+2. Clone this repo
+3. Run pip install requirements.txt
+4. create a config.py file with OPENAI_API_KEY and ANTHROPIC_API_KEY stored in it.
+5. Run `python MSA.py`
+6. Visit http://127.0.0.1:5000 in your browser
+
+Note: I am looking at using environment file to get api keys and make it so that you only need to supply the key of the model that you desire to use.
 
 The app accepts .vtt video transcripts for summarization, but can also take raw text input or .txt files. 
 
@@ -22,7 +26,7 @@ In the "Model Selection" dropdown, choose between:
 
 - GPT-3.5: an older version of OpenAI's GPT-3 model
 - GPT-4: OpenAI's latest offering
-- Claude-v1.3: Anthropic's Constitutional AI model
+- Claude-2: Anthropic's Constitutional AI model
 
 Click "Summarize" to generate a bulleted summary of the meeting discussion points using the selected model.
 
