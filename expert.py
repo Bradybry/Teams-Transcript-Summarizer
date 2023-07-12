@@ -195,9 +195,9 @@ class LanguageExpert:
         The chat object is either an AnthropicModel or OpenAIModel, depending 
         on the model_name parameter. 
         """
-        if self.model_params["model_name"]in ["gpt-4", "gpt-3.5-turbo"]:
+        if 'gpt' in self.model_params["model_name"]:
             self.chat = OpenAIModel(openai_api_key=OPENAI_API_KEY, **self.model_params)
-        elif self.model_params["model_name"] in ['claude-v1.3', 'claude-v1.3-100k']:
+        elif 'claude' in self.model_params["model_name"]:
             self.chat = AnthropicModel(anthropic_api_key=ANTHROPIC_API_KEY, **self.model_params)
         else:
             raise 'Model not supported'
