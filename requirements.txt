@@ -4,3 +4,4 @@ webvtt_py==0.4.6
 openai==0.27.8
 anthropic==0.3.2
 tiktoken
+python-dotenv

@@ -2,15 +2,29 @@ import re
 import json
 from langchain.chat_models import ChatOpenAI, ChatAnthropic
 from langchain.schema import HumanMessage, SystemMessage
-from config import OPENAI_API_KEY, ANTHROPIC_API_KEY #Import API Keys stored in a separate file. You can do this with envionrment variables as well.
 import datetime
 from pathlib import Path
+import os 
+
+openai_api_key = os.environ.get('OPENAI_API_KEY')
+anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
+if openai_api_key is None:
+    from dotenv import load_dotenv
+    load_dotenv()
+    openai_api_key = os.environ.get('OPENAI_API_KEY')
+
+if anthropic_api_key is None:
+    from dotenv import load_dotenv
+    load_dotenv()
+    anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
 
 
 # At the moment langchain API wrappers are needed due to the separation of chat models and language models. These wrappers allow us to use the same interface for both.
 # Class to communicate with OpenAI for generating responses. Wrapped around the langchain wrappers
 class OpenAIModel():
-    def __init__(self, openai_api_key, **model_params):
+    def __init__(self, openai_api_key=None, **model_params):
+        if openai_api_key is None:
+            raise ValueError('OpenAI API key must be provided')
         self.chat = ChatOpenAI(openai_api_key=openai_api_key, **model_params)
     
     def __call__(self, request_messages):
@@ -20,7 +34,9 @@ class OpenAIModel():
         return self.chat.generate(message_list)
 
 class AnthropicModel():
-    def __init__(self, anthropic_api_key, **model_params):
+    def __init__(self, anthropic_api_key=None, **model_params):
+        if anthropic_api_key is None:
+            raise ValueError('Anthropic API key must be provided')
         self.chat = ChatAnthropic(model=model_params['model_name'], max_tokens_to_sample=model_params['max_tokens'], anthropic_api_key=anthropic_api_key)
     
     def __call__(self, request_messages):
@@ -196,9 +212,9 @@ class LanguageExpert:
         on the model_name parameter. 
         """
         if 'gpt' in self.model_params["model_name"]:
-            self.chat = OpenAIModel(openai_api_key=OPENAI_API_KEY, **self.model_params)
+            self.chat = OpenAIModel(openai_api_key=openai_api_key, **self.model_params)
         elif 'claude' in self.model_params["model_name"]:
-            self.chat = AnthropicModel(anthropic_api_key=ANTHROPIC_API_KEY, **self.model_params)
+            self.chat = AnthropicModel(anthropic_api_key=anthropic_api_key, **self.model_params)
         else:
             raise 'Model not supported'
     
