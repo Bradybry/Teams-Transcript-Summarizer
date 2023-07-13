@@ -8,11 +8,9 @@ To run the app locally:
 1. Ensure you have Python 3.7+ and Flask installed
 2. Clone this repo
 3. Run pip install requirements.txt
-4. create a config.py file with OPENAI_API_KEY and ANTHROPIC_API_KEY stored in it.
+4. Include the desired model api keys in your environment variables or create a .env file that includes them. See .env.example for an example.
 5. Run `python MSA.py`
 6. Visit http://127.0.0.1:5000 in your browser
-
-Note: I am looking at using environment file to get api keys and make it so that you only need to supply the key of the model that you desire to use.
 
 The app accepts .vtt video transcripts for summarization, but can also take raw text input or .txt files. 
 
