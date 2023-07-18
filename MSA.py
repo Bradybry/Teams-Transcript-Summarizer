@@ -9,13 +9,9 @@ from langchain.text_splitter import TokenTextSplitter
 import webvtt
 
 global bullet_expert
-bullet_expert = {'name': 'MeetingMinutesWriter', 
-                 'system_message': 'You are an expert meeting assistant responsible for:  \n\n- Transcription analysis and error correction  \n- Discussion point summarization\n- Context addition as needed  \n- Formal and polished writing style  \n- Bulleted list format consistency\n-Use the provided example only as a formatting guide, do not summarize the example.\n-Jump directly into summarization. Do not provide a preamble.', 
-                 'description': 'Provide extremely detailed and accurate meeting minutes in a bulleted list format. The summary should be about 1000 words and include a detailed record of the information from the meeting. Summarizes key discussion points, ensures transcripts are error-free, and adopts a formal writing style.', 
-                 'example_input': "Let's talk about the challenges with the new product launch. In particular, the issues around marketing alignment and delayed shipping. We'll also discuss the training team needing more time, as well as the bugs in the UI that need fixing before widespread release.", 
-                 'example_output': '- Product launch delay: Issues around marketing and shipping coordination   \n- Request: Training team needs 2 more weeks to fix product UI bugs\n\n- Next steps:  \n   -- Departments to align release schedules\n   -- Training team to provide detailed UI bug list\n   -- Target release deadline: Next 2-3 weeks', 
+bullet_expert = {'name': 'Meetings Minutes Writer', 
+                 'system_message': 'You are a helpful assitant that generates bulleted meeting summaries.',  
                  'model_params': {'model_name': 'claude-2', 'temperature': 0.7, 'frequency_penalty': 1.0, 'presence_penalty': 0.5, 'n': 1, 'max_tokens': 2048}}
-
 
 
 def chunk_text(text: str, chunk_size: int = 2048, chunk_overlap: int = 0) -> List[str]:
@@ -121,7 +117,7 @@ def display_summary():
 def summarize(text_content, selected_model):
     max_tokens = 75000 if 'claude' in selected_model else 4096
     chunks_of_text_content: List[str] = chunk_text(text_content, chunk_size=max_tokens)
-    chunks_of_text_content: List[str] = [f'---START AGENT ROLE---\n\n<raw_transcript>{chunk}</raw_transcript>' for chunk in chunks_of_text_content]
+    chunks_of_text_content: List[str] = [f'Summarize the following meeting in a bulleted format. Include as many details as possible. The summary should be about 1000 words long.\n\n<transcript>{chunk}</transcript>' for chunk in chunks_of_text_content]
     batched_chunks: List[List[str]] = batch_list(chunks_of_text_content)
 
     bullet_generator: LanguageExpert = LanguageExpert(**bullet_expert)
