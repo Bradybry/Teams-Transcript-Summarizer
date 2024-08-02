@@ -7,7 +7,7 @@ To run the app locally:
 
 1. Ensure you have Python 3.7+ and Flask installed
 2. Clone this repo
-3. Run pip install requirements.txt
+3. Run `pip install -r requirements.txt`
 4. Include the desired model api keys in your environment variables or create a .env file that includes them. See .env.example for an example.
 5. Run `python MSA.py`
 6. Visit http://127.0.0.1:5000 in your browser
